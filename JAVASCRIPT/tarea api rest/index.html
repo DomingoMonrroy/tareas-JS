@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Consumo API Rick and Morty</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+        .pizarra { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 5px;}
+        .tarjeta { border: 2px solid #333; padding: 10px; width: 200px; text-align: center; border-radius: 10px;}
+        .tarjeta img { width: 100%; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Archivo Central: Rick and Morty</h1>
+    
+    <div>
+        <button onclick="obtenerPersonajes()">1. Obtener Lista de Personajes</button>
+        <button onclick="agruparPorEspecie()">2. Agrupar por Especie</button>
+        <button onclick="mostrarFicha(1)">3. Ver Ficha de Rick (ID: 1)</button>
+    </div>
+
+    <div id="pantalla" class="pizarra">
+        <p>Aquí aparecerá la información...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
