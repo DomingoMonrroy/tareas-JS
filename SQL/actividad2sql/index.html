@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Automotriz</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; }
+        .botones { margin-bottom: 20px; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #333; color: #fff; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 16px; }
+        input { padding: 9px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Panel de Control SQL</h1>
+    
+    <div class="botones">
+        <button onclick="fetchData('/conductores')">1. Ver Conductores</button>
+        <button onclick="fetchData('/automoviles')">2. Ver Automóviles</button>
+        <button onclick="fetchData('/solitos')">3. Ver "Solitos"</button>
+        <br><br>
+        
+        <input type="number" id="edadInput" placeholder="Ej: 30" style="width: 80px;">
+        <button onclick="buscarEdad()">4. Conductores sin auto menores de...</button>
+        <br><br>
+
+        <input type="text" id="patenteInput" placeholder="Ej: HXJH55">
+        <button onclick="buscarPatente()">5. Buscar por Patente</button>
+        
+        <input type="text" id="inicioInput" placeholder="Ej: H">
+        <button onclick="buscarInicio()">6. Buscar por Inicial</button>
+    </div>
+
+    <h2>Resultados:</h2>
+    <pre id="resultados">Haz clic en un botón para ver los datos aquí...</pre>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`);
+                const data = await response.json();
+                document.getElementById('resultados').textContent = JSON.stringify(data, null, 4);
+            } catch (error) {
+                document.getElementById('resultados').textContent = 'Error de conexión. Asegúrate de que el servidor esté corriendo en VS Code.';
+            }
+        }
+
+        function buscarEdad() {
+            const edad = document.getElementById('edadInput').value;
+            if(!edad) return alert("Ingresa una edad");
+            fetchData(`/conductoressinauto?edad=${edad}`);
+        }
+
+        function buscarPatente() {
+            const pat = document.getElementById('patenteInput').value;
+            if(!pat) return alert("Ingresa una patente");
+            fetchData(`/auto?patente=${pat}`);
+        }
+
+        function buscarInicio() {
+            const inicio = document.getElementById('inicioInput').value;
+            if(!inicio) return alert("Ingresa una letra");
+            fetchData(`/auto?iniciopatente=${inicio}`);
+        }
+    </script>
+</body>
+</html>
