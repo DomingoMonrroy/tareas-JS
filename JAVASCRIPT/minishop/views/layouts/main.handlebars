@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniShop</title>
+    <!-- Aquí conectamos el CSS que acabas de pegar -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Inyectamos el partial del navbar -->
+    {{> navbar}}
+
+    <div class="container">
+        <!-- Aquí adentro Handlebars inyectará la vista home, about o contact -->
+        {{{body}}}
+    </div>
+
+    <!-- Inyectamos el partial del footer -->
+    {{> footer}}
+
+</body>
+</html>

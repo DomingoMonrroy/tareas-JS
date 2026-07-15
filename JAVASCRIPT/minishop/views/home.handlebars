@@ -1,0 +1,17 @@
+<h1>{{mayusculas tienda}}</h1>
+<p>{{mensaje}}</p>
+
+<div class="grid-productos">
+    {{#each productos}}
+        <div class="card">
+            <img src="{{imagen}}" alt="{{nombre}}">
+            <h3>{{nombre}}</h3>
+            <p>Precio: ${{precio}}</p>
+            {{#if disponible}}
+                <p class="disponible">En stock</p>
+            {{else}}
+                <p class="agotado">Agotado</p>
+            {{/if}}
+        </div>
+    {{/each}}
+</div>
