@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Netflix</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { display: flex; gap: 20px; max-width: 1000px; margin: 0 auto; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 1; }
+        h1 { text-align: center; color: #e50914; }
+        button { background-color: #e50914; color: white; border: none; padding: 10px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; border-radius: 4px; }
+        button:hover { background-color: #b20710; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .item { background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-left: 4px solid #e50914; }
+        select { width: 100%; padding: 8px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <h1>Administrador de Catálogo</h1>
+
+    <div class="container">
+        <!-- Panel Izquierdo: Listas -->
+        <div class="panel">
+            <button onclick="cargarCatalogo('peliculas')">LISTA DE PELÍCULAS</button>
+            <button onclick="cargarCatalogo('series')">LISTA DE SERIES</button>
+
+            <div id="controles-orden" style="display: none; margin-top: 15px;">
+                <label><strong>Ordenar por:</strong></label>
+                <select id="select-orden" onchange="aplicarOrden()">
+                    <!-- Se llena con Javascript -->
+                </select>
+            </div>
+
+            <div id="resultados" style="margin-top: 20px;">
+                <p>Selecciona una opción para ver el catálogo.</p>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Formularios -->
+        <div class="panel">
+            <h3>Agregar Nueva Película</h3>
+            <form onsubmit="agregarRegistro(event, 'peliculas')">
+                <input type="text" id="p-nombre" placeholder="Nombre de la película" required>
+                <input type="text" id="p-director" placeholder="Director" required>
+                <input type="number" id="p-anio" placeholder="Año" required>
+                <button type="submit">AGREGAR NUEVA PELÍCULA</button>
+            </form>
+
+            <hr style="margin: 25px 0;">
+
+            <h3>Agregar Nueva Serie</h3>
+            <form onsubmit="agregarRegistro(event, 'series')">
+                <input type="text" id="s-nombre" placeholder="Nombre de la serie" required>
+                <input type="number" id="s-anio" placeholder="Año Estreno" required>
+                <input type="number" id="s-temporadas" placeholder="Número de temporadas" required>
+                <button type="submit">AGREGAR NUEVA SERIE</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let datosActuales = [];
+        let tipoActual = '';
+
+        // Realiza el GET al servidor
+        async function cargarCatalogo(tipo) {
+            tipoActual = tipo;
+            try {
+                const response = await fetch(`/api/catalogo?tipo=${tipo}`);
+                datosActuales = await response.json();
+                
+                configurarOrdenamiento();
+                mostrarResultados(datosActuales);
+            } catch (error) {
+                console.error("Error al cargar:", error);
+            }
+        }
+
+        // Configura el menú desplegable según si son series o películas
+        function configurarOrdenamiento() {
+            const select = document.getElementById('select-orden');
+            document.getElementById('controles-orden').style.display = 'block';
+            select.innerHTML = '<option value="">-- Sin orden --</option>';
+            select.innerHTML += '<option value="nombre">Nombre</option>';
+            select.innerHTML += '<option value="anio">Año</option>';
+            
+            if (tipoActual === 'peliculas') {
+                select.innerHTML += '<option value="director">Director</option>';
+            } else {
+                select.innerHTML += '<option value="temporadas">Número de temporadas</option>';
+            }
+        }
+
+        // Ordena el arreglo en memoria y lo vuelve a dibujar en el DOM
+        function aplicarOrden() {
+            const criterio = document.getElementById('select-orden').value;
+            if (!criterio) {
+                mostrarResultados(datosActuales);
+                return;
+            }
+
+            const datosOrdenados = [...datosActuales].sort((a, b) => {
+                if (a[criterio] < b[criterio]) return -1;
+                if (a[criterio] > b[criterio]) return 1;
+                return 0;
+            });
+            mostrarResultados(datosOrdenados);
+        }
+
+        // Dibuja los datos en el DOM
+        function mostrarResultados(datos) {
+            const div = document.getElementById('resultados');
+            div.innerHTML = '';
+            
+            if(datos.length === 0) {
+                div.innerHTML = '<p>No hay registros disponibles.</p>';
+                return;
+            }
+
+            datos.forEach(item => {
+                let detalles = tipoActual === 'peliculas' 
+                    ? `Director: ${item.director} | Año: ${item.anio}`
+                    : `Estreno: ${item.anio} | Temporadas: ${item.temporadas}`;
+                
+                div.innerHTML += `
+                    <div class="item">
+                        <strong>${item.nombre}</strong><br>
+                        <small>${detalles}</small><br>
+                        <button onclick="eliminarRegistro('${item.nombre}')" style="background-color: #333; margin-top: 10px; padding: 5px; font-size: 12px; width: auto;">Eliminar</button>
+                    </div>
+                `;
+            });
+        }
+
+        // Realiza el DELETE al servidor
+        async function eliminarRegistro(nombre) {
+            if (confirm(`¿Estás seguro de que deseas eliminar "${nombre}"?`)) {
+                try {
+                    // El tipo y el nombre van en la URL como pidió el desafío
+                    const response = await fetch(`/api/catalogo/${tipoActual}/${encodeURIComponent(nombre)}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        alert('¡Registro eliminado correctamente!');
+                        cargarCatalogo(tipoActual); // Recarga la lista automáticamente
+                    } else {
+                        alert('Error al intentar eliminar.');
+                    }
+                } catch (error) {
+                    console.error("Error al enviar DELETE:", error);
+                }
+            }
+        }
+
+        // Realiza el POST al servidor
+        async function agregarRegistro(e, tipo) {
+            e.preventDefault(); // Evita que la página se recargue
+            
+            let bodyData = { tipo: tipo };
+
+            if (tipo === 'peliculas') {
+                bodyData.nombre = document.getElementById('p-nombre').value;
+                bodyData.dato2 = document.getElementById('p-director').value;
+                bodyData.dato3 = document.getElementById('p-anio').value;
+            } else {
+                bodyData.nombre = document.getElementById('s-nombre').value;
+                bodyData.dato2 = document.getElementById('s-anio').value;
+                bodyData.dato3 = document.getElementById('s-temporadas').value;
+            }
+
+            try {
+                const response = await fetch('/api/catalogo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (response.ok) {
+                    alert('¡Registro agregado correctamente!');
+                    e.target.reset(); // Limpia el formulario
+                    if (tipoActual === tipo) cargarCatalogo(tipo); // Recarga la lista si estamos viéndola
+                } else {
+                    alert('Error al agregar el registro.');
+                }
+            } catch (error) {
+                console.error("Error al enviar POST:", error);
+            }
+        }
+    </script>
+</body>
+</html>
