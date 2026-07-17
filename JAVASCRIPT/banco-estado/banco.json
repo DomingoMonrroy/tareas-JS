@@ -1,0 +1,19 @@
+[
+  {
+    "rut_cliente": "11111111-1",
+    "nombre": "Ana Silva",
+    "cuenta_rut": "11111111",
+    "cuentas_ahorro": [
+      "A-1001",
+      "A-1002"
+    ]
+  },
+  {
+    "rut_cliente": "22222222-2",
+    "nombre": "Pedro Soto",
+    "cuenta_rut": null,
+    "cuentas_ahorro": [
+      "A-2005"
+    ]
+  }
+]

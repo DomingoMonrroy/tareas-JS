@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal BancoEstado</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #004b87; text-align: center; } 
+        h3 { color: #004b87; border-bottom: 2px solid #ea7a1e; padding-bottom: 5px; }
+        button { background-color: #004b87; color: white; border: none; padding: 10px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; margin-right: 5px; }
+        button:hover { background-color: #003666; }
+        .btn-accion { background-color: #ea7a1e; }
+        .btn-accion:hover { background-color: #c96515; }
+        .btn-peligro { background-color: #dc3545; }
+        .btn-peligro:hover { background-color: #bd2130; }
+        .formulario { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .cliente-card { border-left: 4px solid #004b87; background: #f9f9f9; padding: 15px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Portal de Ejecutivos BancoEstado</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="btn-accion" onclick="cargarClientes('/api/clientes')">Listar Todos los Clientes</button>
+            <button class="btn-accion" onclick="cargarClientes('/api/clientes/rut')">Listar Clientes con Cuenta RUT</button>
+        </div>
+
+        <!-- SECCIÓN: CREAR Y AGREGAR -->
+        <h3>Gestión de Clientes Nuevos y Cuentas</h3>
+        
+        <form class="formulario" onsubmit="agregarCliente(event)">
+            <strong>Nuevo Cliente:</strong>
+            <input type="text" id="rut_nuevo" placeholder="RUT (ej: 4444444-4)" required>
+            <input type="text" id="nombre_nuevo" placeholder="Nombre completo" required>
+            <select id="tipo_cuenta_nueva"><option value="RUT">Cuenta RUT</option><option value="AHORRO">Cuenta de Ahorro</option></select>
+            <input type="text" id="num_cuenta_nueva" placeholder="N° de cuenta" required>
+            <button type="submit">Crear</button>
+        </form>
+
+        <form class="formulario" onsubmit="agregarCuentaExistente(event)">
+            <strong>Agregar Cuenta a Existente:</strong>
+            <input type="text" id="rut_existente" placeholder="RUT Cliente" required>
+            <select id="tipo_cuenta_existente"><option value="RUT">Cuenta RUT</option><option value="AHORRO">Cuenta de Ahorro</option></select>
+            <input type="text" id="num_cuenta_existente" placeholder="N° de cuenta" required>
+            <button type="submit">Agregar</button>
+        </form>
+
+        <!-- SECCIÓN: ELIMINAR -->
+        <h3>Eliminación de Datos</h3>
+        
+        <form class="formulario" onsubmit="eliminarCliente(event)">
+            <strong>Eliminar Cliente Completo:</strong>
+            <input type="text" id="rut_eliminar" placeholder="RUT Cliente" required>
+            <button type="submit" class="btn-peligro">Eliminar Cliente</button>
+        </form>
+
+        <form class="formulario" onsubmit="eliminarCuentaRut(event)">
+            <strong>Eliminar Cuenta RUT:</strong>
+            <input type="text" id="rut_eliminar_rut" placeholder="RUT Cliente" required>
+            <button type="submit" class="btn-peligro">Eliminar Cuenta RUT</button>
+        </form>
+
+        <form class="formulario" onsubmit="eliminarCuentaAhorro(event)">
+            <strong>Eliminar Cuenta Ahorro:</strong>
+            <input type="text" id="rut_eliminar_ahorro" placeholder="RUT Cliente" required>
+            <input type="text" id="num_ahorro_eliminar" placeholder="N° Cuenta Ahorro" required>
+            <button type="submit" class="btn-peligro">Eliminar Ahorro</button>
+        </form>
+
+        <!-- RESULTADOS -->
+        <h3>Resultados de la Base de Datos:</h3>
+        <div id="resultados"><p>Haz clic en un botón superior para cargar datos.</p></div>
+    </div>
+
+    <script>
+        // --- FUNCIONES DE LECTURA ---
+        async function cargarClientes(ruta) {
+            try {
+                const response = await fetch(ruta);
+                const clientes = await response.json();
+                const divResultados = document.getElementById('resultados');
+                divResultados.innerHTML = ''; 
+                if (clientes.length === 0) return divResultados.innerHTML = '<p>No se encontraron clientes.</p>';
+
+                clientes.forEach(c => {
+                    const textoRut = c.cuenta_rut ? c.cuenta_rut : "No posee";
+                    const textoAhorro = c.cuentas_ahorro.length > 0 ? c.cuentas_ahorro.join(', ') : "Ninguna";
+                    divResultados.innerHTML += `<div class="cliente-card"><strong>Nombre:</strong> ${c.nombre} <br><strong>RUT:</strong> ${c.rut_cliente} <br><strong>Cuenta RUT:</strong> ${textoRut} <br><strong>Cuentas de Ahorro:</strong> ${textoAhorro}</div>`;
+                });
+            } catch (error) { console.error(error); }
+        }
+
+        // --- FUNCIONES DE CREACIÓN ---
+        async function procesarPeticion(url, metodo, cuerpo, formulario) {
+            try {
+                const opciones = { method: metodo };
+                if (cuerpo) {
+                    opciones.headers = { 'Content-Type': 'application/json' };
+                    opciones.body = JSON.stringify(cuerpo);
+                }
+                const response = await fetch(url, opciones);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.mensaje);
+                    formulario.reset();
+                    cargarClientes('/api/clientes');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) { console.error(error); }
+        }
+
+        function agregarCliente(e) {
+            e.preventDefault();
+            procesarPeticion('/api/clientes', 'POST', {
+                rut_cliente: document.getElementById('rut_nuevo').value,
+                nombre: document.getElementById('nombre_nuevo').value,
+                tipo_cuenta: document.getElementById('tipo_cuenta_nueva').value,
+                numero_cuenta: document.getElementById('num_cuenta_nueva').value
+            }, e.target);
+        }
+
+        function agregarCuentaExistente(e) {
+            e.preventDefault();
+            const rut = document.getElementById('rut_existente').value;
+            procesarPeticion(`/api/clientes/${rut}/cuenta`, 'PUT', {
+                tipo_cuenta: document.getElementById('tipo_cuenta_existente').value,
+                numero_cuenta: document.getElementById('num_cuenta_existente').value
+            }, e.target);
+        }
+
+        // --- FUNCIONES DE ELIMINACIÓN ---
+        function eliminarCliente(e) {
+            e.preventDefault();
+            const rut = document.getElementById('rut_eliminar').value;
+            if(confirm('¿Seguro que deseas eliminar a este cliente por completo?')) {
+                procesarPeticion(`/api/clientes/${rut}`, 'DELETE', null, e.target);
+            }
+        }
+
+        function eliminarCuentaRut(e) {
+            e.preventDefault();
+            const rut = document.getElementById('rut_eliminar_rut').value;
+            procesarPeticion(`/api/clientes/${rut}/rut`, 'DELETE', null, e.target);
+        }
+
+        function eliminarCuentaAhorro(e) {
+            e.preventDefault();
+            const rut = document.getElementById('rut_eliminar_ahorro').value;
+            const cuenta = document.getElementById('num_ahorro_eliminar').value;
+            procesarPeticion(`/api/clientes/${rut}/ahorro/${cuenta}`, 'DELETE', null, e.target);
+        }
+    </script>
+</body>
+</html>

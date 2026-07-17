@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ministerio de las Mascotas - Registro Civil</title>
+    <!-- Importamos Axios mediante CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f8ff; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; text-align: center; }
+        h3 { border-bottom: 2px solid #3498db; padding-bottom: 5px; color: #2980b9; }
+        .panel { background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 5px; }
+        button { background-color: #3498db; color: white; border: none; padding: 9px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; margin-top: 5px; }
+        button:hover { background-color: #2980b9; }
+        .btn-peligro { background-color: #e74c3c; }
+        .btn-peligro:hover { background-color: #c0392b; }
+        .mascota-card { border-left: 4px solid #3498db; background: #fff; padding: 15px; margin-top: 10px; border: 1px solid #ddd; }
+        
+        /* Estilos para el manejo de mensajes y errores */
+        #sistema-mensajes { padding: 10px; border-radius: 4px; margin-bottom: 15px; text-align: center; font-weight: bold; display: none; }
+        .msj-error { background-color: #fadbd8; color: #c0392b; border: 1px solid #e74c3c; }
+        .msj-exito { background-color: #d5f5e3; color: #27ae60; border: 1px solid #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Registro Civil de Mascotas</h1>
+        
+        <!-- Capa de visualización de errores/éxitos -->
+        <div id="sistema-mensajes"></div>
+
+        <div class="panel">
+            <h3>Registrar Nueva Mascota</h3>
+            <input type="text" id="post_nombre" placeholder="Nombre de la mascota">
+            <input type="text" id="post_rut" placeholder="RUT del dueño (ej: 11111111-1)">
+            <button onclick="registrarMascota()">Inscribir Mascota</button>
+        </div>
+
+        <div class="panel">
+            <h3>Búsqueda de Registros</h3>
+            <button onclick="listarTodas()" style="margin-bottom: 10px;">Listar Todas las Mascotas</button>
+            <br>
+            <input type="text" id="get_nombre" placeholder="Nombre exacto">
+            <button onclick="buscarPorNombre()">Buscar por Nombre</button>
+            <br><br>
+            <input type="text" id="get_rut" placeholder="RUT del dueño">
+            <button onclick="buscarPorRut()">Buscar por RUT</button>
+        </div>
+
+        <div class="panel">
+            <h3>Eliminación de Registros</h3>
+            <input type="text" id="del_nombre" placeholder="Nombre de la mascota">
+            <button class="btn-peligro" onclick="eliminarPorNombre()">Eliminar por Nombre</button>
+            <br><br>
+            <input type="text" id="del_rut" placeholder="RUT del dueño">
+            <button class="btn-peligro" onclick="eliminarPorRut()">Eliminar por RUT</button>
+        </div>
+
+        <h3>Resultados:</h3>
+        <div id="resultados">
+            <p>Esperando consultas...</p>
+        </div>
+    </div>
+
+    <script>
+        // --- CAPA DE CAPTURA Y MANEJO DE ERRORES ---
+        function mostrarMensaje(texto, esError) {
+            const divMensajes = document.getElementById('sistema-mensajes');
+            divMensajes.style.display = 'block';
+            divMensajes.className = esError ? 'msj-error' : 'msj-exito';
+            divMensajes.innerText = texto;
+            
+            // Ocultar el mensaje después de 4 segundos
+            setTimeout(() => { divMensajes.style.display = 'none'; }, 4000);
+        }
+
+        function manejarErrorAxios(error) {
+            document.getElementById('resultados').innerHTML = ''; // Limpiar pantalla
+            if (error.response) {
+                // El servidor respondió con un código de error (ej: 400, 404, 500)
+                mostrarMensaje(`Fallo en la operación: ${error.response.data.error}`, true);
+            } else if (error.request) {
+                // La petición se hizo pero no hubo respuesta del servidor
+                mostrarMensaje("Error: No se pudo establecer conexión con el servidor.", true);
+            } else {
+                // Ocurrió un error al configurar la petición
+                mostrarMensaje(`Error inesperado: ${error.message}`, true);
+            }
+        }
+
+        // --- RENDERIZADO VISUAL ---
+        function dibujarResultados(datos) {
+            const divResultados = document.getElementById('resultados');
+            divResultados.innerHTML = ''; 
+            
+            // Si llega un solo objeto (búsqueda por nombre), lo transformamos en arreglo para iterarlo
+            const lista = Array.isArray(datos) ? datos : [datos];
+
+            lista.forEach(mascota => {
+                divResultados.innerHTML += `
+                    <div class="mascota-card">
+                        <strong>Nombre:</strong> ${mascota.nombre} <br>
+                        <strong>RUT Dueño:</strong> ${mascota.rut}
+                    </div>
+                `;
+            });
+        }
+
+        // --- FUNCIONES AXIOS ---
+        
+        async function listarTodas() {
+            try {
+                const respuesta = await axios.get('/api/mascotas');
+                if(respuesta.data.length === 0) {
+                    document.getElementById('resultados').innerHTML = '<p>No hay mascotas registradas.</p>';
+                    return;
+                }
+                dibujarResultados(respuesta.data);
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+
+        async function buscarPorNombre() {
+            try {
+                const nombre = document.getElementById('get_nombre').value;
+                if(!nombre) return mostrarMensaje("Debe ingresar un nombre para buscar", true);
+                
+                const respuesta = await axios.get(`/api/mascotas/nombre/${nombre}`);
+                dibujarResultados(respuesta.data);
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+
+        async function buscarPorRut() {
+            try {
+                const rut = document.getElementById('get_rut').value;
+                if(!rut) return mostrarMensaje("Debe ingresar un RUT para buscar", true);
+                
+                const respuesta = await axios.get(`/api/mascotas/rut/${rut}`);
+                dibujarResultados(respuesta.data);
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+
+        async function registrarMascota() {
+            try {
+                const nombre = document.getElementById('post_nombre').value;
+                const rut = document.getElementById('post_rut').value;
+                
+                const respuesta = await axios.post('/api/mascotas', {
+                    nombre: nombre,
+                    rut: rut
+                });
+                
+                mostrarMensaje(respuesta.data.mensaje, false);
+                document.getElementById('post_nombre').value = '';
+                document.getElementById('post_rut').value = '';
+                listarTodas(); // Recargar lista
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+
+        async function eliminarPorNombre() {
+            try {
+                const nombre = document.getElementById('del_nombre').value;
+                if(!nombre) return mostrarMensaje("Debe ingresar un nombre para eliminar", true);
+                
+                if(confirm(`¿Seguro que desea eliminar a ${nombre} del registro?`)) {
+                    const respuesta = await axios.delete(`/api/mascotas/nombre/${nombre}`);
+                    mostrarMensaje(respuesta.data.mensaje, false);
+                    document.getElementById('del_nombre').value = '';
+                    listarTodas();
+                }
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+
+        async function eliminarPorRut() {
+            try {
+                const rut = document.getElementById('del_rut').value;
+                if(!rut) return mostrarMensaje("Debe ingresar un RUT para eliminar", true);
+                
+                if(confirm(`¿Seguro que desea eliminar todas las mascotas del RUT ${rut}?`)) {
+                    const respuesta = await axios.delete(`/api/mascotas/rut/${rut}`);
+                    mostrarMensaje(respuesta.data.mensaje, false);
+                    document.getElementById('del_rut').value = '';
+                    listarTodas();
+                }
+            } catch (error) {
+                manejarErrorAxios(error);
+            }
+        }
+    </script>
+</body>
+</html>
