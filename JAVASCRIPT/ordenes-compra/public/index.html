@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Órdenes transaccionales</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #2c3e50; }
+        
+        /* Menú de navegación */
+        .menu { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        .menu button { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .menu button:hover { background-color: #2980b9; }
+        
+        /* Vistas */
+        .vista { display: none; }
+        .vista.activa { display: block; }
+        
+        /* Tablas y Formularios */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; color: #2c3e50; }
+        .formulario { background: #f8f9fa; padding: 20px; border-radius: 5px; border: 1px solid #ddd; }
+        input, select { padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .btn-accion { background-color: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn-accion:hover { background-color: #2196f3; }
+        
+        /* Alertas */
+        #sistema-alertas { padding: 15px; margin-bottom: 20px; border-radius: 5px; font-weight: bold; display: none; text-align: center; }
+        .exito { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        /* Grilla de productos para comprar */
+        .producto-comprar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px; border: 1px solid #eee; margin-bottom: 5px; }
+        .producto-comprar input { width: 80px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Administración de Órdenes y Stock</h1>
+        
+        <!-- Sistema de Notificaciones -->
+        <div id="sistema-alertas"></div>
+
+        <!-- Menú Principal -->
+        <div class="menu">
+            <button onclick="cambiarVista('vista-productos'); cargarProductos()">Listar Productos</button>
+            <button onclick="cambiarVista('vista-ordenes')">Buscar Órdenes</button>
+            <button onclick="cambiarVista('vista-crear-orden'); prepararFormularioOrden()">Crear Orden (Transacción)</button>
+        </div>
+
+        <!-- VISTA 1: LISTAR PRODUCTOS -->
+        <div id="vista-productos" class="vista activa">
+            <h2>Inventario de Productos</h2>
+            <button onclick="cargarProductos()" style="padding: 5px 10px; cursor:pointer;">Actualizar Stock</button>
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Existencias (Stock)</th></tr>
+                </thead>
+                <tbody id="tabla-productos"></tbody>
+            </table>
+        </div>
+
+        <!-- VISTA 2: LISTAR ÓRDENES POR RUT -->
+        <div id="vista-ordenes" class="vista">
+            <h2>Buscar Órdenes por Cliente</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="busqueda-rut" placeholder="Ingrese RUT (Ej: 11111111-1)" style="width: 250px;">
+                <button onclick="buscarOrdenes()" style="padding: 8px 15px; cursor:pointer;">Buscar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>ID Orden</th><th>RUT Cliente</th><th>ID Dirección</th><th>Precio Total</th></tr>
+                </thead>
+                <tbody id="tabla-ordenes"></tbody>
+            </table>
+        </div>
+
+        <!-- VISTA 3: CREAR ORDEN (TRANSACCIONAL) -->
+        <div id="vista-crear-orden" class="vista">
+            <h2>Crear Nueva Orden</h2>
+            <div class="formulario">
+                <h3>1. Datos del Cliente</h3>
+                <label>RUT Cliente:</label>
+                <input type="text" id="orden-rut" placeholder="Ej: 11111111-1" onblur="cargarDirecciones()">
+                
+                <label>Seleccione Dirección de Despacho:</label>
+                <select id="orden-direccion">
+                    <option value="">Ingrese un RUT primero para cargar direcciones...</option>
+                </select>
+
+                <h3>2. Seleccionar Productos</h3>
+                <div id="lista-productos-comprar">
+                    <!-- Se llenará dinámicamente con JS -->
+                </div>
+
+                <button class="btn-accion" onclick="enviarOrdenTransaccional()">Procesar Orden (COMMIT / ROLLBACK)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- NAVEGACIÓN ---
+        function cambiarVista(idVista) {
+            document.querySelectorAll('.vista').forEach(v => v.classList.remove('activa'));
+            document.getElementById(idVista).classList.add('activa');
+            ocultarAlerta();
+        }
+
+        function mostrarAlerta(mensaje, esExito) {
+            const div = document.getElementById('sistema-alertas');
+            div.style.display = 'block';
+            div.className = esExito ? 'exito' : 'error';
+            div.innerText = mensaje;
+        }
+
+        function ocultarAlerta() {
+            document.getElementById('sistema-alertas').style.display = 'none';
+        }
+
+        // --- FUNCIONES GET ---
+        async function cargarProductos() {
+            try {
+                const res = await fetch('/api/datos?filtro=productos');
+                const productos = await res.json();
+                const tbody = document.getElementById('tabla-productos');
+                tbody.innerHTML = '';
+                
+                productos.forEach(p => {
+                    // Resaltar en rojo si no hay stock
+                    const colorStock = p.existencias <= 0 ? 'color: red; font-weight: bold;' : '';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${p.id_producto}</td>
+                            <td>${p.nombre}</td>
+                            <td>$${p.precio}</td>
+                            <td style="${colorStock}">${p.existencias}</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                mostrarAlerta('Error al cargar productos', false);
+            }
+        }
+
+        async function buscarOrdenes() {
+            const rut = document.getElementById('busqueda-rut').value;
+            if (!rut) return mostrarAlerta('Debe ingresar un RUT', false);
+
+            try {
+                const res = await fetch(`/api/datos?filtro=ordenes&rut=${rut}`);
+                const ordenes = await res.json();
+                const tbody = document.getElementById('tabla-ordenes');
+                tbody.innerHTML = '';
+
+                if(ordenes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4">No se encontraron órdenes para este RUT.</td></tr>';
+                    return;
+                }
+
+                ordenes.forEach(o => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${o.id_orden}</td>
+                            <td>${o.rut}</td>
+                            <td>${o.id_direccion}</td>
+                            <td>$${o.precio_total}</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                mostrarAlerta('Error al buscar órdenes', false);
+            }
+        }
+
+        // --- FUNCIONES PARA CREAR ORDEN ---
+        async function prepararFormularioOrden() {
+            // Cargar los productos disponibles con inputs para seleccionar cantidad
+            try {
+                const res = await fetch('/api/datos?filtro=productos');
+                const productos = await res.json();
+                const contenedor = document.getElementById('lista-productos-comprar');
+                contenedor.innerHTML = '';
+                
+                productos.forEach(p => {
+                    contenedor.innerHTML += `
+                        <div class="producto-comprar">
+                            <span><strong>${p.nombre}</strong> ($${p.precio}) - Stock: ${p.existencias}</span>
+                            <div>
+                                <label>Cantidad:</label>
+                                <input type="number" min="0" value="0" class="input-cantidad" data-id="${p.id_producto}">
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function cargarDirecciones() {
+            const rut = document.getElementById('orden-rut').value;
+            const select = document.getElementById('orden-direccion');
+            if (!rut) return;
+
+            try {
+                const res = await fetch(`/api/datos?filtro=direcciones&rut=${rut}`);
+                const direcciones = await res.json();
+                
+                select.innerHTML = '';
+                if(direcciones.length === 0) {
+                    select.innerHTML = '<option value="">El cliente no tiene direcciones registradas</option>';
+                    return;
+                }
+                
+                direcciones.forEach(d => {
+                    select.innerHTML += `<option value="${d.id_direccion}">${d.direccion}</option>`;
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function enviarOrdenTransaccional() {
+            const rut = document.getElementById('orden-rut').value;
+            const id_direccion = document.getElementById('orden-direccion').value;
+            
+            // Construir el carrito filtrando solo los que tienen cantidad > 0
+            const inputs = document.querySelectorAll('.input-cantidad');
+            let carrito = [];
+            
+            inputs.forEach(input => {
+                const cantidad = parseInt(input.value);
+                if (cantidad > 0) {
+                    carrito.push({
+                        id_producto: input.getAttribute('data-id'),
+                        cantidad: cantidad
+                    });
+                }
+            });
+
+            if (!rut || !id_direccion) return mostrarAlerta('Falta completar RUT o Dirección', false);
+            if (carrito.length === 0) return mostrarAlerta('Debe seleccionar al menos un producto', false);
+
+            try {
+                const res = await fetch('/orden', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rut, id_direccion, carrito })
+                });
+
+                const data = await res.json();
+
+                if (res.status === 201) {
+                    mostrarAlerta(data.mensaje + ' (ID: ' + data.id_orden + ')', true);
+                    // Reiniciar formulario
+                    document.getElementById('orden-rut').value = '';
+                    document.getElementById('orden-direccion').innerHTML = '<option value="">Ingrese un RUT primero para cargar direcciones...</option>';
+                    prepararFormularioOrden(); 
+                } else if (res.status === 409) {
+                    // ERROR TRANSACCIONAL (ROLLBACK)
+                    mostrarAlerta('FALLA DE STOCK (ROLLBACK EJECUTADO): ' + data.mensaje, false);
+                } else {
+                    mostrarAlerta('Error del servidor: ' + data.mensaje, false);
+                }
+            } catch (error) {
+                mostrarAlerta('Error de comunicación con el servidor', false);
+            }
+        }
+
+        // Cargar productos al iniciar la página
+        window.onload = cargarProductos;
+    </script>
+</body>
+</html>
