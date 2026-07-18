@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Clientes (Sequelize)</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        input { padding: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #ecf0f1; margin: 5px 0; padding: 10px; border-radius: 4px; border-left: 4px solid #3498db; }
+        .formulario { border-top: 2px solid #eee; margin-top: 20px; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Directorio de Clientes</h1>
+        
+        <button id="listar">Listar Todos los Clientes</button>
+        <ul id="lista"></ul>
+
+        <div class="formulario">
+            <h2>Registrar Nuevo Cliente</h2>
+            <form id="form">
+                <input name="nombre" placeholder="Nombre completo" required />
+                <input name="email" placeholder="Correo electrónico" type="email" required />
+                <button type="submit">Agregar Cliente</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // La ruta a la que haremos las peticiones
+        const API = '/clientes';
+        const ul = document.getElementById('lista');
+
+        // Función para consumir el GET
+        document.getElementById('listar').onclick = async () => {
+            try {
+                const r = await fetch(API); 
+                const data = await r.json();
+                
+                if (data.length === 0) {
+                    ul.innerHTML = '<li>No hay clientes registrados en la base de datos.</li>';
+                    return;
+                }
+                
+                ul.innerHTML = data.map(c => `<li><strong>${c.nombre}</strong> — ${c.email}</li>`).join('');
+            } catch (error) {
+                alert('Error al conectar con el servidor.');
+            }
+        };
+
+        // Función para consumir el POST
+        document.getElementById('form').onsubmit = async (e) => {
+            e.preventDefault(); // Evita que la página se recargue al enviar
+            
+            const fd = new FormData(e.target);
+            const body = { nombre: fd.get('nombre'), email: fd.get('email') };
+            
+            try {
+                const r = await fetch(API, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(body) 
+                });
+                
+                if (r.ok) { 
+                    e.target.reset(); // Limpia los inputs
+                    alert('¡Cliente creado exitosamente!'); 
+                    document.getElementById('listar').click(); // Auto-actualiza la lista en pantalla
+                } else { 
+                    const err = await r.json(); 
+                    alert('No se pudo guardar: ' + (err.mensaje || 'Revise los datos ingresados.')); 
+                }
+            } catch (error) {
+                alert('Error al enviar los datos al servidor.');
+            }
+        };
+    </script>
+</body>
+</html>

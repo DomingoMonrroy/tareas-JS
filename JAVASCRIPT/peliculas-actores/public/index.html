@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineApp - Relaciones N-N</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: auto; }
+        h1, h2, h3 { color: #2c3e50; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #2980b9; }
+        .btn-asignar { background-color: #27ae60; }
+        .btn-asignar:hover { background-color: #2196f3; }
+        ul { list-style: none; padding: 0; }
+        li { background: #ecf0f1; margin: 5px 0; padding: 10px; border-radius: 4px; font-size: 0.9em; }
+        .tag { display: inline-block; background: #34495e; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center;">🎬 CineApp: Gestión de Películas y Actores</h1>
+        
+        <div class="grid">
+            <!-- PANEL PELÍCULAS -->
+            <div class="card">
+                <h2>Añadir Película</h2>
+                <form id="form-pelicula">
+                    <input type="text" id="p-titulo" placeholder="Título de la película" required>
+                    <input type="number" id="p-anio" placeholder="Año de estreno (Ej: 2024)" required>
+                    <button type="submit">Guardar Película</button>
+                </form>
+                
+                <h3>Listado de Películas</h3>
+                <ul id="lista-peliculas"></ul>
+            </div>
+
+            <!-- PANEL ACTORES -->
+            <div class="card">
+                <h2>Añadir Actor</h2>
+                <form id="form-actor">
+                    <input type="text" id="a-nombre" placeholder="Nombre completo" required>
+                    <input type="date" id="a-fecha" required>
+                    <button type="submit">Guardar Actor</button>
+                </form>
+
+                <h3>Listado de Actores</h3>
+                <ul id="lista-actores"></ul>
+            </div>
+        </div>
+
+        <!-- PANEL DE ASIGNACIÓN TRANSACCIONAL -->
+        <div class="card" style="margin-top: 20px;">
+            <h2 style="text-align: center;">🔗 Asignar Actor a Película (Transacción N-N)</h2>
+            <form id="form-asignar" style="display: flex; gap: 10px; align-items: center;">
+                <select id="select-pelicula" required><option value="">-- Seleccionar Película --</option></select>
+                <select id="select-actor" required><option value="">-- Seleccionar Actor --</option></select>
+                <button type="submit" class="btn-asignar" style="width: auto; padding: 10px 30px;">Vincular</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Cargar datos iniciales
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarDatos();
+        });
+
+        async function cargarDatos() {
+            try {
+                // Fetch de Películas
+                const resPelis = await fetch('/peliculas');
+                const peliculas = await resPelis.json();
+                
+                // Fetch de Actores
+                const resActores = await fetch('/actores');
+                const actores = await resActores.json();
+
+                renderizarPeliculas(peliculas);
+                renderizarActores(actores);
+                llenarSelectores(peliculas, actores);
+            } catch (error) {
+                console.error("Error al cargar datos", error);
+            }
+        }
+
+        function renderizarPeliculas(peliculas) {
+            const ul = document.getElementById('lista-peliculas');
+            ul.innerHTML = peliculas.map(p => {
+                const actoresTags = p.Actors.map(a => `<span class="tag">${a.nombre}</span>`).join('');
+                return `<li><strong>${p.titulo} (${p.anio})</strong><br> Reparto: ${actoresTags || '<em>Sin asignar</em>'}</li>`;
+            }).join('');
+        }
+
+        function renderizarActores(actores) {
+            const ul = document.getElementById('lista-actores');
+            ul.innerHTML = actores.map(a => {
+                const pelisTags = a.Peliculas.map(p => `<span class="tag">${p.titulo}</span>`).join('');
+                return `<li><strong>${a.nombre}</strong> (Nacimiento: ${a.fecha_nacimiento})<br> Películas: ${pelisTags || '<em>Ninguna</em>'}</li>`;
+            }).join('');
+        }
+
+        function llenarSelectores(peliculas, actores) {
+            const sPeli = document.getElementById('select-pelicula');
+            const sActor = document.getElementById('select-actor');
+            
+            sPeli.innerHTML = '<option value="">-- Seleccionar Película --</option>' + peliculas.map(p => `<option value="${p.id}">${p.titulo}</option>`).join('');
+            sActor.innerHTML = '<option value="">-- Seleccionar Actor --</option>' + actores.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+        }
+
+        // POST: Nueva Película
+        document.getElementById('form-pelicula').onsubmit = async (e) => {
+            e.preventDefault();
+            const body = { titulo: document.getElementById('p-titulo').value, anio: document.getElementById('p-anio').value };
+            await fetch('/peliculas', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            e.target.reset();
+            cargarDatos();
+        };
+
+        // POST: Nuevo Actor
+        document.getElementById('form-actor').onsubmit = async (e) => {
+            e.preventDefault();
+            const body = { nombre: document.getElementById('a-nombre').value, fecha_nacimiento: document.getElementById('a-fecha').value };
+            await fetch('/actores', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            e.target.reset();
+            cargarDatos();
+        };
+
+        // POST TRANSACCIONAL: Asignar Actor a Película
+        document.getElementById('form-asignar').onsubmit = async (e) => {
+            e.preventDefault();
+            const body = { pelicula_id: document.getElementById('select-pelicula').value, actor_id: document.getElementById('select-actor').value };
+            
+            const r = await fetch('/asignar-actor', { 
+                method: 'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body: JSON.stringify(body) 
+            });
+            
+            const data = await r.json();
+            if (r.ok) {
+                alert(data.mensaje);
+                cargarDatos(); // Refrescar las listas
+            } else {
+                alert(data.error);
+            }
+        };
+    </script>
+</body>
+</html>
